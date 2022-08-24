@@ -1,12 +1,12 @@
 """
 """
 
-from pydsol.core.statistics import Counter, Tally, WeightedTally
-from pydsol.core.model import DSOLModel
+from pydsol.core.experiment import SingleReplication, Replication
 from pydsol.core.interfaces import SimulatorInterface, ReplicationInterface
+from pydsol.core.model import DSOLModel
 from pydsol.core.pubsub import EventListener, Event
 from pydsol.core.simulator import DEVSSimulatorFloat
-from pydsol.core.experiment import SingleReplication, Replication
+from pydsol.core.statistics import Counter, Tally, WeightedTally, SimTally
 
 from pydsol.flow.resources import Resource
 
@@ -18,16 +18,19 @@ class QueuingModel(DSOLModel):
         
     def construct_model(self):
         self._res1: Resource = Resource("RES1", "Test resource 1",
-                                        self._simulator)
+                                        self._simulator, 1)
         sim: DEVSSimulatorFloat = self._simulator
         sim.schedule_event_abs(0.0, self, "arrival")
         
     def arrival(self):
-        entity = "object arriving at " + str(self._simulator.simulator_time)
-        self._res1.seize(entity, 1)
+        product = "object arriving at " + str(self._simulator.simulator_time)
+        print("Generated: " + str(product))
+        self._res1.seize(product, 1, self.seize_succeeded, entity=product)
+        self._simulator.schedule_event_rel(4, self, "arrival")
+
+    def seize_succeeded(self, entity):
         self._simulator.schedule_event_rel(5, self, "departure",
                                            entity=entity)
-        self._simulator.schedule_event_rel(4, self, "arrival")
         
     def departure(self, entity):
         self._res1.release(entity, 1)
@@ -52,23 +55,23 @@ class MM1Simulation(EventListener):
         print("\n\nEnd simulation\n")
 
         print(Counter.report_header())
-        for stat in self.model.output_statistics.values():
+        for stat in self.model.output_statistics().values():
             if isinstance(stat, Counter):
-                stat.report_line()
+                print(stat.report_line())
         print(Counter.report_footer())
         print()
 
         print(Tally.report_header())
-        for stat in self.model.output_statistics.values():
+        for stat in self.model.output_statistics().values():
             if isinstance(stat, Tally):
-                stat.report_line()
+                print(stat.report_line())
         print(Tally.report_footer())
         print()
 
         print(WeightedTally.report_header())
-        for stat in self.model.output_statistics.values():
+        for stat in self.model.output_statistics().values():
             if isinstance(stat, WeightedTally):
-                stat.report_line()
+                print(stat.report_line())
         print(WeightedTally.report_footer())
 
 
